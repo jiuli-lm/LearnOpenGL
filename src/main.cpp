@@ -2,7 +2,10 @@
 #include <GLAD/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include <my_shader.h>
+
+//引入自定义类
+#include "my_shader.h"
+#include "my_TextureLoader.h"
 
 //帧缓冲大小函数
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -40,15 +43,19 @@ int main()
         return -1;
     }
     // 线框模式
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // 这里实现我们的shader项目
+
+    Shader myShader("shader\\Texture.vert","shader\\Texture.frag");
+    Texture myTexture("Resource\\Image\\awesomeface.png");
+
     // 顶点数组 这里是三角形的三个顶点坐标
     float vertices_1[] = {
-        -0.5f, -0.5f, 0.0f,
-        0.5f, -0.5f, 0.0f,
-        0.0f,  0.5f, 0.0f
+        -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
+         0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
+         0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
     };
 
     float vertices_2[] = {
@@ -62,6 +69,15 @@ int main()
          0.5f,  0.5f, 0.0f   // 右上
     };
     
+    //加入纹理的顶点
+    float vertices_4[] = {
+        //     ---- 位置 ----       ---- 颜色 ----     - 纹理坐标 -
+             0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // 右上
+             0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // 右下
+            -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // 左下
+            -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f    // 左上
+    };
+
     // 使用 EBO 
     float vertices_3[] = {
         -0.5f,  0.5f, 0.0f,  // 左上
@@ -85,17 +101,26 @@ int main()
     // 绑定VAO、VBO
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_3), vertices_3, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_4), vertices_4, GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
 
     // 设置顶点属性指针
-    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,8*sizeof(float),(void*)0);
     // 启用顶点属性 记得关闭哦！！！
     glEnableVertexAttribArray(0);
 
-    Shader myShader("shader\\Triangle.vert","shader\\Triangle.frag");
+    glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,8*sizeof(float),(void*)(3*sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glVertexAttribPointer(2,2,GL_FLOAT,GL_FALSE,8*sizeof(float),(void*)(6*sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    myTexture.use();
+    myShader.use();
+    glUniform1i(glGetUniformLocation(myShader.ID,"ourTexture"),0);
+    // myShader.setInt("ourTexture",1);
 
     // 渲染循环体
     while (!glfwWindowShouldClose(window))
@@ -108,21 +133,22 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
 
         // 绘制物体
+        myTexture.use();
         myShader.use();
+
         
-        float timeValue = glfwGetTime();
-        float xOffset = sin(timeValue) * 0.5f;
+        // float timeValue = glfwGetTime();
+        // float greenValue = sin(timeValue) * 0.5f + 0.5f;
 
-        int offsetLoc = glGetUniformLocation(myShader.ID, "xOffset");
-        glUniform1f(offsetLoc, xOffset);
-
+        // 计算uniform位置值
+        // int offsetLoc = glGetUniformLocation(myShader.ID, "myColor");
+        // glUniform4f(offsetLoc, 0.0f, greenValue, 0.0f, 1.0f);
 
         glBindVertexArray(VAO);
         // glDrawArrays(GL_TRIANGLES,0,6);
         // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-        //关闭顶点属性
+        //解绑
         glBindVertexArray(0);
 
 
@@ -130,6 +156,11 @@ int main()
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    //回收缓冲对象
+    glDeleteVertexArrays(1,&VAO);
+    glDeleteBuffers(1,&VBO);
+    glDeleteBuffers(1,&EBO);
 
     // 清理所有的资源并正确地退出应用程序
     glfwTerminate();
