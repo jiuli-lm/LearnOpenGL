@@ -3,6 +3,10 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 //引入自定义类
 #include "my_shader.h"
 #include "my_TextureLoader.h"
@@ -49,41 +53,17 @@ int main()
     // 这里实现我们的shader项目
 
     Shader myShader("shader\\Texture.vert","shader\\Texture.frag");
-    Texture myTexture("Resource\\Image\\awesomeface.png");
+    Texture texture_1("Resource\\Image\\awesomeface.png");
+    Texture texture_2("Resource\\Image\\container.jpg");
 
-    // 顶点数组 这里是三角形的三个顶点坐标
-    float vertices_1[] = {
-        -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
-         0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
-         0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
-    };
-
-    float vertices_2[] = {
-        // 第一个三角形
-        -0.5f,  0.5f, 0.0f,  // 左上
-        -0.5f, -0.5f, 0.0f,  // 左下
-         0.5f, -0.5f, 0.0f,  // 右下
-        // 第二个三角形
-        -0.5f,  0.5f, 0.0f,  // 左上
-         0.5f, -0.5f, 0.0f,  // 右下
-         0.5f,  0.5f, 0.0f   // 右上
-    };
-    
+    // 顶点数组
     //加入纹理的顶点
-    float vertices_4[] = {
-        //     ---- 位置 ----       ---- 颜色 ----     - 纹理坐标 -
-             0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // 右上
-             0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // 右下
-            -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // 左下
-            -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f    // 左上
-    };
-
-    // 使用 EBO 
-    float vertices_3[] = {
-        -0.5f,  0.5f, 0.0f,  // 左上
-        -0.5f, -0.5f, 0.0f,  // 左下
-         0.5f, -0.5f, 0.0f,  // 右下
-         0.5f,  0.5f, 0.0f   // 右上
+    float vertices[] = {
+        //     ---- 位置 ----      - 纹理坐标 -
+             0.5f,  0.5f, 0.0f,   1.0f, 1.0f,   // 右上
+             0.5f, -0.5f, 0.0f,   1.0f, 0.0f,   // 右下
+            -0.5f, -0.5f, 0.0f,   0.0f, 0.0f,   // 左下
+            -0.5f,  0.5f, 0.0f,   0.0f, 1.0f    // 左上
     };
 
     unsigned int indices[] = {
@@ -100,27 +80,32 @@ int main()
 
     // 绑定VAO、VBO
     glBindVertexArray(VAO);
+
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_4), vertices_4, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-
     // 设置顶点属性指针
-    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,8*sizeof(float),(void*)0);
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,5*sizeof(float),(void*)0);
     // 启用顶点属性 记得关闭哦！！！
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,8*sizeof(float),(void*)(3*sizeof(float)));
+    glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,5*sizeof(float),(void*)(3*sizeof(float)));
     glEnableVertexAttribArray(1);
 
-    glVertexAttribPointer(2,2,GL_FLOAT,GL_FALSE,8*sizeof(float),(void*)(6*sizeof(float)));
-    glEnableVertexAttribArray(2);
+    texture_1.use(0);
+    texture_2.use(1);
 
-    myTexture.use();
+    // // 初始化矩阵
+    // glm::mat4 trans = glm::mat4(1.0f);
+    // trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0f,0.0f,1.0f));
+    // trans = glm::scale(trans, glm::vec3(0.5f,0.5f,0.5f));
+
     myShader.use();
-    glUniform1i(glGetUniformLocation(myShader.ID,"ourTexture"),0);
-    // myShader.setInt("ourTexture",1);
+    myShader.setInt("texture_1",0);
+    myShader.setInt("texture_2",1);
 
     // 渲染循环体
     while (!glfwWindowShouldClose(window))
@@ -132,21 +117,20 @@ int main()
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // 绘制物体
-        myTexture.use();
+        // 绑定纹理
+        texture_1.use(0);
+        texture_2.use(1);
+
+        glm::mat4 trans = glm::mat4(1.0f);
+        trans = glm::translate(trans, glm::vec3(0.5f,0.0f,0.0f));
+        trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0f,0.0f,1.0f));
+
         myShader.use();
-
-        
-        // float timeValue = glfwGetTime();
-        // float greenValue = sin(timeValue) * 0.5f + 0.5f;
-
-        // 计算uniform位置值
-        // int offsetLoc = glGetUniformLocation(myShader.ID, "myColor");
-        // glUniform4f(offsetLoc, 0.0f, greenValue, 0.0f, 1.0f);
+        //变换矩阵传入着色器
+        unsigned int transfromLoc = glGetUniformLocation(myShader.ID, "transform");
+        glUniformMatrix4fv(transfromLoc, 1, GL_FALSE, glm::value_ptr(trans));
 
         glBindVertexArray(VAO);
-        // glDrawArrays(GL_TRIANGLES,0,6);
-        // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         //解绑
         glBindVertexArray(0);

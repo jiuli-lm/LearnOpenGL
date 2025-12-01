@@ -38,7 +38,7 @@ public:
     }
 
     void use(GLuint textureUnit = 0) const {
-        glActiveTexture(GL_TEXTURE + textureUnit);
+        glActiveTexture(GL_TEXTURE0 + textureUnit);
         glBindTexture(GL_TEXTURE_2D, ID);
     }
 
