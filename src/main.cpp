@@ -7,17 +7,29 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-//引入自定义类
+// 引入自定义类
 #include "my_shader.h"
 #include "my_TextureLoader.h"
+#include "my_fpsCamera.h"
 
-//帧缓冲大小函数
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window);
 
 // 窗口大小
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+
+// 相机
+FpsCamera camera(glm::vec3(0.0f,0.0f,3.0f));
+float lastX = SCR_WIDTH / 2.0f;
+float lastY = SCR_HEIGHT / 2.0f;
+bool firstMouse = true;
+
+// time
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
 
 int main()
 {
@@ -39,6 +51,10 @@ int main()
     }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	// GLAD加载所有函数指针
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -148,6 +164,11 @@ int main()
     // 渲染循环体
     while (!glfwWindowShouldClose(window))
     {
+        // 帧时间
+        float currentFrame = static_cast<float>(glfwGetTime());
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
         // 输入
         processInput(window);
 
@@ -160,20 +181,10 @@ int main()
         texture_2.use(1);
         myShader.use();
 
-        // glm::mat4 model       = glm::mat4(1.0f);
-        glm::mat4 view        = glm::mat4(1.0f);
-        glm::mat4 projection  = glm::mat4(1.0f);
-        // model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
-        view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
-        projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-
-        //变换矩阵传入着色器
-        // unsigned int modelLoc = glGetUniformLocation(myShader.ID, "model");
-        // unsigned int viewLoc = glGetUniformLocation(myShader.ID, "view");
-        // glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        // glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &view[0][0]);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        myShader.setMat4("projection", projection); 
+        glm::mat4 view = camera.GetViewMatrix();
         myShader.setMat4("view", view);
-        myShader.setMat4("projection", projection);
 
         glBindVertexArray(VAO);
         for(unsigned int i = 0; i < 10; i++)
@@ -181,16 +192,13 @@ int main()
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, cubePositions[i]);
             float angle = 20.0f * i;
-            if(i % 3 == 0){
-                angle = glfwGetTime() * 25.0f;
-            }
             model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
             myShader.setMat4("model", model);
 
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
-        //解绑
+        // 解绑
         glBindVertexArray(0);
 
 
@@ -199,7 +207,7 @@ int main()
         glfwPollEvents();
     }
 
-    //回收缓冲对象
+    // 回收缓冲对象
     glDeleteVertexArrays(1,&VAO);
     glDeleteBuffers(1,&VBO);
 
@@ -211,14 +219,44 @@ int main()
 // 检测特定的键是否被按下，并在每一帧做出处理
 void processInput(GLFWwindow* window)
 {
-    //检查用户是否按下了返回键 
+    // 检查用户是否按下了返回键 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+    
+    // 相机输入
+    float cameraSpeed = 0.05f;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camera.ProcessKeyboard(FORWARD,deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.ProcessKeyboard(BACKWARD,deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.ProcessKeyboard(LEFT,deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.ProcessKeyboard(RIGHT,deltaTime);
 }
 
-// 创建一个回调函数
+// 创建回调函数
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	// OpenGL渲染窗口的尺寸大小，即视口(Viewport)
     glViewport(0, 0, width, height);
+}
+
+void mouse_callback(GLFWwindow* window, double xposIn, double yposIn){
+    float xpos = static_cast<float>(xposIn);
+    float ypos = static_cast<float>(yposIn);
+
+    if(firstMouse){
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos;
+
+    lastX = xpos;
+    lastY = ypos;
+    
+    camera.ProcessMouseMovement(xoffset,yoffset);
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset){
+    camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
