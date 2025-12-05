@@ -74,8 +74,8 @@ int main()
 
     // 这里实现我们的shader项目
 
-    Shader cubeShader("shader\\colors.vert","shader\\colors.frag");
-    Shader lightShader("shader\\light_cube.vert","shader\\light_cube.frag");
+    Shader cubeShader("shader\\cube.vert","shader\\cube.frag");
+    Shader lightShader("shader\\light.vert","shader\\light.frag");
 
     // 顶点数组
     //加入纹理的顶点
@@ -163,7 +163,7 @@ int main()
         processInput(window);
 
         // 每帧绘制开始时，以清除上一帧残留内容
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         cubeShader.use();
